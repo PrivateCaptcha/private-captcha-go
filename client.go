@@ -120,21 +120,27 @@ func (c *client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 }
 
 type VerifyInput struct {
-	Solution string
-	Retry    bool
+	Solution          string
+	MaxBackoffSeconds int
+	Attempts          int
 }
 
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
 // In case of errors, can use VerificationResponse.RequestID() for tracing. Do NOT retry on ErrOverloaded.
 func (c *client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput, error) {
-	attempts := 1
-	if options.Retry {
-		attempts = 5
+	attempts := 5
+	if options.Attempts > 0 {
+		attempts = options.Attempts
+	}
+
+	maxBackoffSeconds := 4
+	if options.MaxBackoffSeconds > 0 {
+		maxBackoffSeconds = options.MaxBackoffSeconds
 	}
 
 	b := &backoff.Backoff{
 		Min:    200 * time.Millisecond,
-		Max:    4 * time.Second,
+		Max:    time.Duration(maxBackoffSeconds) * time.Second,
 		Factor: 2,
 		Jitter: true,
 	}
@@ -150,7 +156,7 @@ func (c *client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput
 		if (err != nil) && errors.As(err, &rerr) && (attempts > 1) {
 			backoffDuration := b.Duration()
 			if int64(seconds)*1000 > backoffDuration.Milliseconds() {
-				backoffDuration = time.Duration(seconds) * time.Second
+				backoffDuration = time.Duration(min(seconds, maxBackoffSeconds)) * time.Second
 			}
 			time.Sleep(backoffDuration)
 		} else {

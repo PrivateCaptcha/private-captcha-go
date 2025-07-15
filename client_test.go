@@ -51,7 +51,7 @@ func TestStubPuzzle(t *testing.T) {
 	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
 	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
 
-	output, err := client.Verify(context.TODO(), VerifyInput{Solution: payload, Retry: true})
+	output, err := client.Verify(context.TODO(), VerifyInput{Solution: payload})
 	if err != nil {
 		t.Fatal(err)
 	}

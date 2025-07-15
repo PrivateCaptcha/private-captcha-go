@@ -22,7 +22,7 @@ Use client:
 client, err := pc.NewClient(pc.Configuration{APIKey: "pc_abcdef"})
 // ... handle err
 
-output, err := client.Verify(ctx, pc.VerifyInput{Solution: solution, Retry: true})
+output, err := client.Verify(ctx, pc.VerifyInput{Solution: solution})
 // ... handle err
 
 if !output.Success {
