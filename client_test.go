@@ -51,12 +51,12 @@ func TestStubPuzzle(t *testing.T) {
 	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
 	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
 
-	result, err := client.Verify(context.TODO(), payload)
+	output, err := client.Verify(context.TODO(), VerifyInput{Solution: payload, Retry: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !result.Success || (result.Code != TestPropertyError) {
-		t.Errorf("Unexpected result (%v) or error (%v)", result.Success, result.Code)
+	if !output.Success || (output.Code != TestPropertyError) {
+		t.Errorf("Unexpected result (%v) or error (%v)", output.Success, output.Code)
 	}
 }

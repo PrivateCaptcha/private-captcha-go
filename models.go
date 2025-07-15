@@ -1,28 +1,28 @@
 package privatecaptcha
 
-type VerifyError int
+type VerifyCode int
 
 const (
-	VerifyNoError           VerifyError = 0
-	VerifyErrorOther        VerifyError = 1
-	DuplicateSolutionsError VerifyError = 2
-	InvalidSolutionError    VerifyError = 3
-	ParseResponseError      VerifyError = 4
-	PuzzleExpiredError      VerifyError = 5
-	InvalidPropertyError    VerifyError = 6
-	WrongOwnerError         VerifyError = 7
-	VerifiedBeforeError     VerifyError = 8
-	MaintenanceModeError    VerifyError = 9
-	TestPropertyError       VerifyError = 10
-	IntegrityError          VerifyError = 11
+	VerifyNoError           VerifyCode = 0
+	VerifyErrorOther        VerifyCode = 1
+	DuplicateSolutionsError VerifyCode = 2
+	InvalidSolutionError    VerifyCode = 3
+	ParseResponseError      VerifyCode = 4
+	PuzzleExpiredError      VerifyCode = 5
+	InvalidPropertyError    VerifyCode = 6
+	WrongOwnerError         VerifyCode = 7
+	VerifiedBeforeError     VerifyCode = 8
+	MaintenanceModeError    VerifyCode = 9
+	TestPropertyError       VerifyCode = 10
+	IntegrityError          VerifyCode = 11
 	// Add new fields _above_
-	VERIFY_ERRORS_COUNT
+	VERIFY_CODES_COUNT
 )
 
-func (verr VerifyError) String() string {
+func (verr VerifyCode) String() string {
 	switch verr {
 	case VerifyNoError:
-		return "no-error"
+		return ""
 	case VerifyErrorOther:
 		return "error-other"
 	case DuplicateSolutionsError:
@@ -50,14 +50,23 @@ func (verr VerifyError) String() string {
 	}
 }
 
-type VerificationResponse struct {
-	Success   bool        `json:"success"`
-	Code      VerifyError `json:"code"`
-	Origin    string      `json:"origin,omitempty"`
-	Timestamp string      `json:"timestamp,omitempty"`
+type VerifyOutput struct {
+	Success   bool       `json:"success"`
+	Code      VerifyCode `json:"code"`
+	Origin    string     `json:"origin,omitempty"`
+	Timestamp string     `json:"timestamp,omitempty"`
+	requestID string     `json:"-"`
 }
 
-func (vr *VerificationResponse) Error() string {
+func (vr *VerifyOutput) RequestID() string {
+	if vr == nil {
+		return ""
+	}
+
+	return vr.requestID
+}
+
+func (vr *VerifyOutput) Error() string {
 	if vr == nil {
 		return ""
 	}
