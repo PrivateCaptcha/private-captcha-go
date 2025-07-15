@@ -20,9 +20,12 @@ Use client:
 
 ```go
 client, err := pc.NewClient(pc.Configuration{APIKey: "pc_abcdef"})
+// ... handle err
 
-result, err := client.Verify(ctx, solution)
-if !result.Success {
+output, err := client.Verify(ctx, VerifyInput{Solution: solution, Retry: true})
+// ... handle err
+
+if !output.Success {
 	fmt.Printf("Captcha verification failed. Error: %s", result.Error())
 }
 ```
