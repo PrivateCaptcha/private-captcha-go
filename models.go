@@ -19,9 +19,48 @@ const (
 	VERIFY_ERRORS_COUNT
 )
 
+func (verr VerifyError) String() string {
+	switch verr {
+	case VerifyNoError:
+		return "no-error"
+	case VerifyErrorOther:
+		return "error-other"
+	case DuplicateSolutionsError:
+		return "solution-duplicates"
+	case InvalidSolutionError:
+		return "solution-invalid"
+	case ParseResponseError:
+		return "solution-bad-format"
+	case PuzzleExpiredError:
+		return "puzzle-expired"
+	case InvalidPropertyError:
+		return "property-invalid"
+	case WrongOwnerError:
+		return "property-owner-mismatch"
+	case VerifiedBeforeError:
+		return "solution-verified-before"
+	case MaintenanceModeError:
+		return "maintenance-mode"
+	case TestPropertyError:
+		return "property-test"
+	case IntegrityError:
+		return "integrity-error"
+	default:
+		return "error"
+	}
+}
+
 type VerificationResponse struct {
 	Success   bool        `json:"success"`
 	Code      VerifyError `json:"code"`
 	Origin    string      `json:"origin,omitempty"`
 	Timestamp string      `json:"timestamp,omitempty"`
+}
+
+func (vr *VerificationResponse) Error() string {
+	if vr == nil {
+		return ""
+	}
+
+	return vr.Code.String()
 }
