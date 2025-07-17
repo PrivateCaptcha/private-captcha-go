@@ -30,10 +30,14 @@ const (
 )
 
 type Configuration struct {
-	Domain    string
-	APIKey    string
+	// (optional) Domain name when used with self-hosted version of Private Captcha
+	Domain string
+	// (required) API key created in Private Captcha account settings
+	APIKey string
+	// (optional) Custom form field to read puzzle solution from (only used for VerifyRequest helper)
 	FormField string
-	Client    *http.Client
+	// (optional) Custom http.Client to use with requests
+	Client *http.Client
 }
 
 type Client struct {
