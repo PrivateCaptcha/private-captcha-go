@@ -7,7 +7,7 @@
 Install this library:
 
 ```bash
-go get github.com/PrivateCaptcha/private-captcha-go
+go get -u github.com/PrivateCaptcha/private-captcha-go
 ```
 
 Add import:
