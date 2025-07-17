@@ -38,13 +38,16 @@ type Configuration struct {
 	FormField string
 	// (optional) Custom http.Client to use with requests
 	Client *http.Client
+	// (optional) http status to return for failed verifications (defaults to http.StatusForbidden)
+	FailedStatusCode int
 }
 
 type Client struct {
-	endpoint  string
-	apiKey    string
-	formField string
-	client    *http.Client
+	endpoint         string
+	apiKey           string
+	formField        string
+	failedStatusCode int
+	client           *http.Client
 }
 
 // NewClient creates a new instance of Private Captcha API client
@@ -68,11 +71,16 @@ func NewClient(cfg Configuration) (*Client, error) {
 		cfg.FormField = DefaultFormField
 	}
 
+	if cfg.FailedStatusCode == 0 {
+		cfg.FailedStatusCode = http.StatusForbidden
+	}
+
 	return &Client{
-		endpoint:  fmt.Sprintf("https://%s/verify", strings.Trim(cfg.Domain, "/")),
-		apiKey:    cfg.APIKey,
-		client:    cfg.Client,
-		formField: cfg.FormField,
+		endpoint:         fmt.Sprintf("https://%s/verify", strings.Trim(cfg.Domain, "/")),
+		apiKey:           cfg.APIKey,
+		client:           cfg.Client,
+		formField:        cfg.FormField,
+		failedStatusCode: cfg.FailedStatusCode,
 	}, nil
 }
 
@@ -183,7 +191,29 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 }
 
 // VerifyRequest fetches puzzle solution from HTTP form field configured on creation and calls Verify() with defaults
-func (c *Client) VerifyRequest(ctx context.Context, r *http.Request) (*VerifyOutput, error) {
+func (c *Client) VerifyRequest(ctx context.Context, r *http.Request) error {
 	solution := r.FormValue(c.formField)
-	return c.Verify(ctx, VerifyInput{Solution: solution})
+
+	output, err := c.Verify(ctx, VerifyInput{Solution: solution})
+	if err != nil {
+		return err
+	}
+
+	if !output.Success {
+		return fmt.Errorf("captcha verification failed: %v", output.Error())
+	}
+
+	return nil
+}
+
+// VerifyFunc is a basic http middleware that verifies captcha solution sent via form
+func (c *Client) VerifyFunc(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := c.VerifyRequest(r.Context(), r); err != nil {
+			http.Error(w, http.StatusText(c.failedStatusCode), c.failedStatusCode)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
