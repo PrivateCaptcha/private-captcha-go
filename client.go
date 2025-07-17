@@ -23,21 +23,24 @@ var (
 )
 
 const (
-	GlobalDomain = "api.privatecaptcha.com"
-	EUDomain     = "api.eu.privatecaptcha.com"
-	maxErrLength = 140
+	GlobalDomain     = "api.privatecaptcha.com"
+	EUDomain         = "api.eu.privatecaptcha.com"
+	DefaultFormField = "private-captcha-solution"
+	maxErrLength     = 140
 )
 
 type Configuration struct {
-	Domain string
-	APIKey string
-	Client *http.Client
+	Domain    string
+	APIKey    string
+	FormField string
+	Client    *http.Client
 }
 
 type Client struct {
-	endpoint string
-	apiKey   string
-	client   *http.Client
+	endpoint  string
+	apiKey    string
+	formField string
+	client    *http.Client
 }
 
 // NewClient creates a new instance of Private Captcha API client
@@ -57,10 +60,15 @@ func NewClient(cfg Configuration) (*Client, error) {
 		cfg.Client = http.DefaultClient
 	}
 
+	if len(cfg.FormField) == 0 {
+		cfg.FormField = DefaultFormField
+	}
+
 	return &Client{
-		endpoint: fmt.Sprintf("https://%s/verify", strings.Trim(cfg.Domain, "/")),
-		apiKey:   cfg.APIKey,
-		client:   cfg.Client,
+		endpoint:  fmt.Sprintf("https://%s/verify", strings.Trim(cfg.Domain, "/")),
+		apiKey:    cfg.APIKey,
+		client:    cfg.Client,
+		formField: cfg.FormField,
 	}, nil
 }
 
@@ -130,15 +138,15 @@ type VerifyInput struct {
 
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
 // In case of errors, can use VerificationResponse.RequestID() for tracing. Do NOT retry on ErrOverloaded.
-func (c *Client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput, error) {
+func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, error) {
 	attempts := 5
-	if options.Attempts > 0 {
-		attempts = options.Attempts
+	if input.Attempts > 0 {
+		attempts = input.Attempts
 	}
 
 	maxBackoffSeconds := 4
-	if options.MaxBackoffSeconds > 0 {
-		maxBackoffSeconds = options.MaxBackoffSeconds
+	if input.MaxBackoffSeconds > 0 {
+		maxBackoffSeconds = input.MaxBackoffSeconds
 	}
 
 	b := &backoff.Backoff{
@@ -153,7 +161,7 @@ func (c *Client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput
 	var seconds int
 
 	for i := 0; i < attempts; i++ {
-		response, seconds, err = c.doVerify(ctx, options.Solution)
+		response, seconds, err = c.doVerify(ctx, input.Solution)
 
 		var rerr retriableError
 		if (err != nil) && errors.As(err, &rerr) && (attempts > 1) {
@@ -168,4 +176,10 @@ func (c *Client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput
 	}
 
 	return response, err
+}
+
+// VerifyRequest fetches puzzle solution from HTTP form field configured on creation and calls Verify() with defaults
+func (c *Client) VerifyRequest(ctx context.Context, r *http.Request) (*VerifyOutput, error) {
+	solution := r.FormValue(c.formField)
+	return c.Verify(ctx, VerifyInput{Solution: solution})
 }
