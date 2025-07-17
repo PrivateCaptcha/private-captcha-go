@@ -34,27 +34,30 @@ type Configuration struct {
 	Client *http.Client
 }
 
-type client struct {
+type Client struct {
 	endpoint string
 	apiKey   string
 	client   *http.Client
 }
 
 // NewClient creates a new instance of Private Captcha API client
-func NewClient(cfg Configuration) (*client, error) {
+func NewClient(cfg Configuration) (*Client, error) {
 	if len(cfg.APIKey) == 0 {
 		return nil, errEmptyAPIKey
 	}
 
 	if len(cfg.Domain) == 0 {
 		cfg.Domain = GlobalDomain
+	} else if strings.HasPrefix(cfg.Domain, "http") {
+		cfg.Domain = strings.TrimPrefix(cfg.Domain, "https://")
+		cfg.Domain = strings.TrimPrefix(cfg.Domain, "http://")
 	}
 
 	if cfg.Client == nil {
 		cfg.Client = http.DefaultClient
 	}
 
-	return &client{
+	return &Client{
 		endpoint: fmt.Sprintf("https://%s/verify", strings.Trim(cfg.Domain, "/")),
 		apiKey:   cfg.APIKey,
 		client:   cfg.Client,
@@ -74,7 +77,7 @@ func (e retriableError) Unwrap() error {
 	return e.err
 }
 
-func (c *client) doVerify(ctx context.Context, solution string) (*VerifyOutput, int, error) {
+func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, strings.NewReader(solution))
 	if err != nil {
 		return nil, 0, err
@@ -127,7 +130,7 @@ type VerifyInput struct {
 
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
 // In case of errors, can use VerificationResponse.RequestID() for tracing. Do NOT retry on ErrOverloaded.
-func (c *client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput, error) {
+func (c *Client) Verify(ctx context.Context, options VerifyInput) (*VerifyOutput, error) {
 	attempts := 5
 	if options.Attempts > 0 {
 		attempts = options.Attempts
