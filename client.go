@@ -144,15 +144,11 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 	if (resp.StatusCode >= 500) ||
 		(resp.StatusCode == http.StatusRequestTimeout) ||
 		(resp.StatusCode == http.StatusTooEarly) {
-		return nil, 0, retriableError{HTTPError{
-			StatusCode: resp.StatusCode,
-		}}
+		return nil, 0, retriableError{HTTPError{StatusCode: resp.StatusCode}}
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, 0, HTTPError{
-			StatusCode: resp.StatusCode,
-		}
+		return nil, 0, HTTPError{StatusCode: resp.StatusCode}
 	}
 
 	response := &VerifyOutput{requestID: resp.Header.Get(headerTraceID)}
@@ -171,7 +167,7 @@ type VerifyInput struct {
 }
 
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
-// In case of errors, can use VerificationResponse.RequestID() for tracing. Do NOT retry on ErrOverloaded.
+// In case of errors, can use VerificationResponse.RequestID() for tracing.
 func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, error) {
 	attempts := 5
 	if input.Attempts > 0 {
