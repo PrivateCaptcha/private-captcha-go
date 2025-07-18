@@ -18,7 +18,6 @@ var (
 	headerTraceID    = http.CanonicalHeaderKey("X-Trace-ID")
 	retryAfterHeader = http.CanonicalHeaderKey("Retry-After")
 	errEmptyAPIKey   = errors.New("privatecaptcha: API key is empty")
-	errAPIError      = errors.New("privatecaptcha: unexpected API error")
 )
 
 const (
