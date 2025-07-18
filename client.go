@@ -31,11 +31,10 @@ const (
 // HTTPError represents an error with an associated HTTP status code
 type HTTPError struct {
 	StatusCode int
-	Message    string
 }
 
 func (e HTTPError) Error() string {
-	return e.Message
+	return fmt.Sprintf("privatecaptcha: HTTP error %d", e.StatusCode)
 }
 
 // GetStatusCode returns the HTTP status code if the error is an HTTPError
@@ -139,7 +138,6 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 
 		return nil, seconds, retriableError{HTTPError{
 			StatusCode: resp.StatusCode,
-			Message:    "privatecaptcha: server is overloaded",
 		}}
 	}
 
@@ -148,14 +146,12 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 		(resp.StatusCode == http.StatusTooEarly) {
 		return nil, 0, retriableError{HTTPError{
 			StatusCode: resp.StatusCode,
-			Message:    "privatecaptcha: unexpected API error",
 		}}
 	}
 
 	if resp.StatusCode >= 300 {
 		return nil, 0, HTTPError{
 			StatusCode: resp.StatusCode,
-			Message:    fmt.Sprintf("privatecaptcha: API request failed with code %v", resp.StatusCode),
 		}
 	}
 
