@@ -19,7 +19,6 @@ var (
 	retryAfterHeader = http.CanonicalHeaderKey("Retry-After")
 	errEmptyAPIKey   = errors.New("privatecaptcha: API key is empty")
 	errAPIError      = errors.New("privatecaptcha: unexpected API error")
-	ErrOverloaded    = errors.New("privatecaptcha: server is overloaded")
 )
 
 const (
@@ -28,6 +27,25 @@ const (
 	DefaultFormField = "private-captcha-solution"
 	maxErrLength     = 140
 )
+
+// HTTPError represents an error with an associated HTTP status code
+type HTTPError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e HTTPError) Error() string {
+	return e.Message
+}
+
+// GetStatusCode returns the HTTP status code if the error is an HTTPError
+func GetStatusCode(err error) (int, bool) {
+	var httpErr HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.StatusCode, true
+	}
+	return 0, false
+}
 
 type Configuration struct {
 	// (optional) Domain name when used with self-hosted version of Private Captcha
@@ -119,18 +137,26 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 			}
 		}
 
-		return nil, seconds, retriableError{ErrOverloaded}
+		return nil, seconds, retriableError{HTTPError{
+			StatusCode: resp.StatusCode,
+			Message:    "privatecaptcha: server is overloaded",
+		}}
 	}
 
 	if (resp.StatusCode >= 500) ||
-		(resp.StatusCode == http.StatusTooManyRequests) ||
 		(resp.StatusCode == http.StatusRequestTimeout) ||
 		(resp.StatusCode == http.StatusTooEarly) {
-		return nil, 0, retriableError{errAPIError}
+		return nil, 0, retriableError{HTTPError{
+			StatusCode: resp.StatusCode,
+			Message:    "privatecaptcha: unexpected API error",
+		}}
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, 0, fmt.Errorf("privatecaptcha: API request failed with code %v", resp.StatusCode)
+		return nil, 0, HTTPError{
+			StatusCode: resp.StatusCode,
+			Message:    fmt.Sprintf("privatecaptcha: API request failed with code %v", resp.StatusCode),
+		}
 	}
 
 	response := &VerifyOutput{requestID: resp.Header.Get(headerTraceID)}
