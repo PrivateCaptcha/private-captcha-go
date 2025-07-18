@@ -205,6 +205,11 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 		}
 	}
 
+	var rerr retriableError
+	if (err != nil) && errors.As(err, &rerr) {
+		return response, rerr.Unwrap()
+	}
+
 	return response, err
 }
 
