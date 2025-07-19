@@ -34,6 +34,8 @@ func fetchTestPuzzle() ([]byte, error) {
 }
 
 func TestStubPuzzle(t *testing.T) {
+	t.Parallel()
+
 	puzzle, err := fetchTestPuzzle()
 	fmt.Println(string(puzzle))
 	if err != nil {
@@ -62,6 +64,8 @@ func TestStubPuzzle(t *testing.T) {
 }
 
 func TestVerifyError(t *testing.T) {
+	t.Parallel()
+
 	puzzle, err := fetchTestPuzzle()
 	fmt.Println(string(puzzle))
 	if err != nil {
