@@ -60,3 +60,31 @@ func TestStubPuzzle(t *testing.T) {
 		t.Errorf("Unexpected result (%v) or error (%v)", output.Success, output.Code)
 	}
 }
+
+func TestVerifyError(t *testing.T) {
+	puzzle, err := fetchTestPuzzle()
+	fmt.Println(string(puzzle))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, err := NewClient(Configuration{
+		APIKey: os.Getenv("PC_API_KEY"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	emptySolutionsBytes := make([]byte, solutionsCount*solutionLength/2)
+	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
+	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
+
+	output, err := client.Verify(context.TODO(), VerifyInput{Solution: payload})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if output.Success || (output.Code != ParseResponseError) {
+		t.Errorf("Unexpected result (%v) or error (%v)", output.Success, output.Code)
+	}
+}
