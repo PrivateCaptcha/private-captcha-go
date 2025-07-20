@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"testing"
@@ -14,6 +15,18 @@ const (
 	solutionsCount = 16
 	solutionLength = 8
 )
+
+func setupTraceLogs() {
+	opts := &slog.HandlerOptions{
+		Level: levelTrace,
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, opts))
+	slog.SetDefault(logger)
+}
+
+func init() {
+	setupTraceLogs()
+}
 
 func fetchTestPuzzle() ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, "https://api.privatecaptcha.com/puzzle?sitekey=aaaaaaaabbbbccccddddeeeeeeeeeeee", nil)

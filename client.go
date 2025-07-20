@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ var (
 	headerTraceID    = http.CanonicalHeaderKey("X-Trace-ID")
 	retryAfterHeader = http.CanonicalHeaderKey("Retry-After")
 	errEmptyAPIKey   = errors.New("privatecaptcha: API key is empty")
+	errEmtpySolution = errors.New("privatecaptcha: solution is empty")
 )
 
 const (
@@ -116,6 +118,7 @@ func (e retriableError) Unwrap() error {
 func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, strings.NewReader(solution))
 	if err != nil {
+		slog.Log(ctx, levelTrace, "Failed to create HTTP request", errAttr(err))
 		return nil, 0, err
 	}
 
@@ -123,9 +126,12 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		slog.Log(ctx, levelTrace, "Failed to send HTTP request", errAttr(err))
 		return nil, 0, retriableError{err}
 	}
 	defer resp.Body.Close()
+
+	slog.Log(ctx, levelTrace, "HTTP request finished", "status", resp.StatusCode)
 
 	if resp.StatusCode == http.StatusTooManyRequests {
 		seconds := -1
@@ -168,6 +174,10 @@ type VerifyInput struct {
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
 // In case of errors, can use VerificationResponse.RequestID() for tracing.
 func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, error) {
+	if len(input.Solution) == 0 {
+		return nil, errEmtpySolution
+	}
+
 	attempts := 5
 	if input.Attempts > 0 {
 		attempts = input.Attempts
@@ -188,8 +198,11 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 	var response *VerifyOutput
 	var err error
 	var seconds int
+	var i int
 
-	for i := 0; i < attempts; i++ {
+	slog.Log(ctx, levelTrace, "About to start sending verify request", "maxAttempts", attempts, "maxBackoff", maxBackoffSeconds, "solution", len(input.Solution))
+
+	for i = 0; i < attempts; i++ {
 		response, seconds, err = c.doVerify(ctx, input.Solution)
 
 		var rerr retriableError
@@ -198,11 +211,14 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 			if int64(seconds)*1000 > backoffDuration.Milliseconds() {
 				backoffDuration = time.Duration(min(seconds, maxBackoffSeconds)) * time.Second
 			}
+			slog.Log(ctx, levelTrace, "Failed to send verify request", "attempt", i, "backoff", backoffDuration.String(), errAttr(rerr.Unwrap()))
 			time.Sleep(backoffDuration)
 		} else {
 			break
 		}
 	}
+
+	slog.Log(ctx, levelTrace, "Finished sending verify request", "attempts", i, "success", (err == nil))
 
 	var rerr retriableError
 	if (err != nil) && errors.As(err, &rerr) {
