@@ -34,6 +34,7 @@ const (
 // HTTPError represents an error with an associated HTTP status code
 type HTTPError struct {
 	StatusCode int
+	Seconds    int
 }
 
 func (e HTTPError) Error() string {
@@ -117,11 +118,11 @@ func (e retriableError) Unwrap() error {
 	return e.err
 }
 
-func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, int, error) {
+func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, strings.NewReader(solution))
 	if err != nil {
 		slog.Log(ctx, levelTrace, "Failed to create HTTP request", errAttr(err))
-		return nil, 0, err
+		return nil, err
 	}
 
 	req.Header.Set(headerApiKey, c.apiKey)
@@ -129,43 +130,43 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 	resp, err := c.client.Do(req)
 	if err != nil {
 		slog.Log(ctx, levelTrace, "Failed to send HTTP request", "path", req.URL.Path, "method", req.Method, errAttr(err))
-		return nil, 0, retriableError{err}
+		return nil, retriableError{err}
 	}
 	defer resp.Body.Close()
 
 	slog.Log(ctx, levelTrace, "HTTP request finished", "path", req.URL.Path, "status", resp.StatusCode)
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		seconds := -1
+		httpErr := HTTPError{StatusCode: resp.StatusCode}
 		if retryAfter := resp.Header.Get(retryAfterHeader); len(retryAfter) > 0 {
 			slog.Log(ctx, levelTrace, "Rate limited", "retryAfter", retryAfter, "rateLimit", resp.Header.Get(rateLimitHeader))
-			if value, err := strconv.Atoi(retryAfter); err == nil {
-				seconds = value
+			if value, aerr := strconv.Atoi(retryAfter); aerr == nil {
+				httpErr.Seconds = value
+			} else {
+				slog.Log(ctx, levelTrace, "Failed to parse Retry-After header", "retryAfter", retryAfter, errAttr(aerr))
 			}
 		}
 
-		return nil, seconds, retriableError{HTTPError{
-			StatusCode: resp.StatusCode,
-		}}
+		return nil, retriableError{httpErr}
 	}
 
 	if (resp.StatusCode >= 500) ||
 		(resp.StatusCode == http.StatusRequestTimeout) ||
 		(resp.StatusCode == http.StatusTooEarly) {
-		return nil, 0, retriableError{HTTPError{StatusCode: resp.StatusCode}}
+		return nil, retriableError{HTTPError{StatusCode: resp.StatusCode}}
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, 0, HTTPError{StatusCode: resp.StatusCode}
+		return nil, HTTPError{StatusCode: resp.StatusCode}
 	}
 
 	response := &VerifyOutput{requestID: resp.Header.Get(headerTraceID)}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return response, 0, retriableError{err}
+		return response, retriableError{err}
 	}
 
-	return response, 0, nil
+	return response, nil
 }
 
 type VerifyInput struct {
@@ -200,26 +201,28 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 
 	var response *VerifyOutput
 	var err error
-	var seconds int
 	var i int
 
 	slog.Log(ctx, levelTrace, "About to start verifying solution", "maxAttempts", attempts, "maxBackoff", maxBackoffSeconds, "solution", len(input.Solution))
 
 	for i = 0; i < attempts; i++ {
 		if i > 0 {
-			var rerr retriableError
 			backoffDuration := b.Duration()
-			if (err != nil) && errors.As(err, &rerr) {
-				if int64(seconds)*1000 > backoffDuration.Milliseconds() {
-					backoffDuration = time.Duration(min(seconds, maxBackoffSeconds)) * time.Second
+			var httpErr HTTPError
+			if (err != nil) && errors.As(err, &httpErr) {
+				if int64(httpErr.Seconds)*1000 > backoffDuration.Milliseconds() {
+					backoffDuration = time.Duration(min(httpErr.Seconds, maxBackoffSeconds)) * time.Second
 				}
 			}
-			slog.Log(ctx, levelTrace, "Failed to send verify request", "attempt", i, "backoff", backoffDuration.String(), errAttr(rerr.Unwrap()))
+			slog.Log(ctx, levelTrace, "Failed to send verify request", "attempt", i, "backoff", backoffDuration.String(), errAttr(err))
 			time.Sleep(backoffDuration)
 		}
 
-		response, seconds, err = c.doVerify(ctx, input.Solution)
-		if err == nil {
+		response, err = c.doVerify(ctx, input.Solution)
+		var rerr retriableError
+		if (err != nil) && errors.As(err, &rerr) {
+			err = rerr.Unwrap()
+		} else {
 			break
 		}
 	}
