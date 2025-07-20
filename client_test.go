@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 )
 
 const (
@@ -169,5 +170,36 @@ func TestVerifyEmptySolution(t *testing.T) {
 
 	if _, err := client.Verify(ctx, VerifyInput{}); err != errEmtpySolution {
 		t.Fatal("Should not proceed on empty solution")
+	}
+}
+
+func TestRetryBackoff(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.WithValue(context.TODO(), traceIDContextKey, t.Name())
+
+	client, err := NewClient(Configuration{
+		APIKey: os.Getenv("PC_API_KEY"),
+		Domain: "does-not-exist.qwerty12345-asdfjkl.net",
+		Client: &http.Client{Timeout: 1 * time.Second},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := VerifyInput{
+		Solution:          "asdf",
+		MaxBackoffSeconds: 2,
+		Attempts:          4,
+	}
+
+	start := time.Now()
+	if _, err := client.Verify(ctx, input); err == nil {
+		t.Fatal("Managed to verify invalid domain")
+	}
+	diff := time.Since(start)
+
+	if diff.Milliseconds() < minBackoffMillis*(1<<int64(input.Attempts-1)-1) {
+		t.Fatal("Didn't wait through all attempts")
 	}
 }

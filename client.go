@@ -28,6 +28,7 @@ const (
 	EUDomain         = "api.eu.privatecaptcha.com"
 	DefaultFormField = "private-captcha-solution"
 	maxErrLength     = 140
+	minBackoffMillis = 250
 )
 
 // HTTPError represents an error with an associated HTTP status code
@@ -191,7 +192,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 	}
 
 	b := &backoff.Backoff{
-		Min:    250 * time.Millisecond,
+		Min:    minBackoffMillis * time.Millisecond,
 		Max:    time.Duration(maxBackoffSeconds) * time.Second,
 		Factor: 2,
 		Jitter: true,
