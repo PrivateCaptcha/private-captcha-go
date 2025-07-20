@@ -18,6 +18,7 @@ var (
 	headerApiKey     = http.CanonicalHeaderKey("X-Api-Key")
 	headerTraceID    = http.CanonicalHeaderKey("X-Trace-ID")
 	retryAfterHeader = http.CanonicalHeaderKey("Retry-After")
+	rateLimitHeader  = http.CanonicalHeaderKey("X-RateLimit-Limit")
 	errEmptyAPIKey   = errors.New("privatecaptcha: API key is empty")
 	errEmtpySolution = errors.New("privatecaptcha: solution is empty")
 )
@@ -136,6 +137,7 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 	if resp.StatusCode == http.StatusTooManyRequests {
 		seconds := -1
 		if retryAfter := resp.Header.Get(retryAfterHeader); len(retryAfter) > 0 {
+			slog.Log(ctx, levelTrace, "Rate limited", "retryAfter", retryAfter, "rateLimit", resp.Header.Get(rateLimitHeader))
 			if value, err := strconv.Atoi(retryAfter); err == nil {
 				seconds = value
 			}
