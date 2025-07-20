@@ -126,12 +126,12 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		slog.Log(ctx, levelTrace, "Failed to send HTTP request", errAttr(err))
+		slog.Log(ctx, levelTrace, "Failed to send HTTP request", "path", req.URL.Path, "method", req.Method, errAttr(err))
 		return nil, 0, retriableError{err}
 	}
 	defer resp.Body.Close()
 
-	slog.Log(ctx, levelTrace, "HTTP request finished", "status", resp.StatusCode)
+	slog.Log(ctx, levelTrace, "HTTP request finished", "path", req.URL.Path, "status", resp.StatusCode)
 
 	if resp.StatusCode == http.StatusTooManyRequests {
 		seconds := -1
@@ -189,7 +189,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 	}
 
 	b := &backoff.Backoff{
-		Min:    200 * time.Millisecond,
+		Min:    250 * time.Millisecond,
 		Max:    time.Duration(maxBackoffSeconds) * time.Second,
 		Factor: 2,
 		Jitter: true,
@@ -200,7 +200,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 	var seconds int
 	var i int
 
-	slog.Log(ctx, levelTrace, "About to start sending verify request", "maxAttempts", attempts, "maxBackoff", maxBackoffSeconds, "solution", len(input.Solution))
+	slog.Log(ctx, levelTrace, "About to start verifying solution", "maxAttempts", attempts, "maxBackoff", maxBackoffSeconds, "solution", len(input.Solution))
 
 	for i = 0; i < attempts; i++ {
 		response, seconds, err = c.doVerify(ctx, input.Solution)
@@ -218,7 +218,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 		}
 	}
 
-	slog.Log(ctx, levelTrace, "Finished sending verify request", "attempts", i, "success", (err == nil))
+	slog.Log(ctx, levelTrace, "Finished verifying solution", "attempts", i, "success", (err == nil))
 
 	var rerr retriableError
 	if (err != nil) && errors.As(err, &rerr) {
