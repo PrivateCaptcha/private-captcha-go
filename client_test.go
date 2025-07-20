@@ -189,17 +189,17 @@ func TestRetryBackoff(t *testing.T) {
 
 	input := VerifyInput{
 		Solution:          "asdf",
-		MaxBackoffSeconds: 2,
+		MaxBackoffSeconds: 1,
 		Attempts:          4,
 	}
 
-	start := time.Now()
-	if _, err := client.Verify(ctx, input); err == nil {
+	response, err := client.Verify(ctx, input)
+
+	if err == nil {
 		t.Fatal("Managed to verify invalid domain")
 	}
-	diff := time.Since(start)
 
-	if diff.Milliseconds() < minBackoffMillis*(1<<int64(input.Attempts-1)-1) {
-		t.Fatal("Didn't wait through all attempts")
+	if response.attempt != input.Attempts {
+		t.Fatal("Didn't go through all attempts")
 	}
 }

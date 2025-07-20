@@ -229,10 +229,10 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 
 	slog.Log(ctx, levelTrace, "Finished verifying solution", "attempts", i, "success", (err == nil))
 
-	var rerr retriableError
-	if (err != nil) && errors.As(err, &rerr) {
-		return response, rerr.Unwrap()
+	if response == nil {
+		response = &VerifyOutput{Success: false, Code: VERIFY_CODES_COUNT}
 	}
+	response.attempt = i
 
 	return response, err
 }

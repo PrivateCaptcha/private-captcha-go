@@ -56,6 +56,7 @@ type VerifyOutput struct {
 	Origin    string     `json:"origin,omitempty"`
 	Timestamp string     `json:"timestamp,omitempty"`
 	requestID string     `json:"-"`
+	attempt   int        `json:"-"`
 }
 
 func (vr *VerifyOutput) RequestID() string {
