@@ -205,17 +205,20 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 	slog.Log(ctx, levelTrace, "About to start verifying solution", "maxAttempts", attempts, "maxBackoff", maxBackoffSeconds, "solution", len(input.Solution))
 
 	for i = 0; i < attempts; i++ {
-		response, seconds, err = c.doVerify(ctx, input.Solution)
-
-		var rerr retriableError
-		if (err != nil) && errors.As(err, &rerr) && (attempts > 1) {
+		if i > 0 {
+			var rerr retriableError
 			backoffDuration := b.Duration()
-			if int64(seconds)*1000 > backoffDuration.Milliseconds() {
-				backoffDuration = time.Duration(min(seconds, maxBackoffSeconds)) * time.Second
+			if (err != nil) && errors.As(err, &rerr) {
+				if int64(seconds)*1000 > backoffDuration.Milliseconds() {
+					backoffDuration = time.Duration(min(seconds, maxBackoffSeconds)) * time.Second
+				}
 			}
 			slog.Log(ctx, levelTrace, "Failed to send verify request", "attempt", i, "backoff", backoffDuration.String(), errAttr(rerr.Unwrap()))
 			time.Sleep(backoffDuration)
-		} else {
+		}
+
+		response, seconds, err = c.doVerify(ctx, input.Solution)
+		if err == nil {
 			break
 		}
 	}
