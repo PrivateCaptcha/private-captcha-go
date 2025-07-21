@@ -15,13 +15,14 @@ import (
 )
 
 var (
-	headerApiKey     = http.CanonicalHeaderKey("X-Api-Key")
-	headerTraceID    = http.CanonicalHeaderKey("X-Trace-ID")
-	headerUserAgent  = http.CanonicalHeaderKey("User-Agent")
-	retryAfterHeader = http.CanonicalHeaderKey("Retry-After")
-	rateLimitHeader  = http.CanonicalHeaderKey("X-RateLimit-Limit")
-	errEmptyAPIKey   = errors.New("privatecaptcha: API key is empty")
-	errEmtpySolution = errors.New("privatecaptcha: solution is empty")
+	headerApiKey      = http.CanonicalHeaderKey("X-Api-Key")
+	headerTraceID     = http.CanonicalHeaderKey("X-Trace-ID")
+	headerUserAgent   = http.CanonicalHeaderKey("User-Agent")
+	headerRetryAfter  = http.CanonicalHeaderKey("Retry-After")
+	headerRateLimit   = http.CanonicalHeaderKey("X-RateLimit-Limit")
+	headerContentType = http.CanonicalHeaderKey("Content-Type")
+	errEmptyAPIKey    = errors.New("privatecaptcha: API key is empty")
+	errEmtpySolution  = errors.New("privatecaptcha: solution is empty")
 )
 
 const (
@@ -129,6 +130,7 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 
 	req.Header.Set(headerApiKey, c.apiKey)
 	req.Header.Set(headerUserAgent, userAgent)
+	req.Header.Set(headerContentType, "text/plain")
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -142,8 +144,8 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 	switch resp.StatusCode {
 	case http.StatusTooManyRequests:
 		httpErr := HTTPError{StatusCode: resp.StatusCode}
-		if retryAfter := resp.Header.Get(retryAfterHeader); len(retryAfter) > 0 {
-			slog.Log(ctx, levelTrace, "Rate limited", "retryAfter", retryAfter, "rateLimit", resp.Header.Get(rateLimitHeader))
+		if retryAfter := resp.Header.Get(headerRetryAfter); len(retryAfter) > 0 {
+			slog.Log(ctx, levelTrace, "Rate limited", "retryAfter", retryAfter, "rateLimit", resp.Header.Get(headerRateLimit))
 			if value, aerr := strconv.Atoi(retryAfter); aerr == nil {
 				httpErr.Seconds = value
 			} else {
