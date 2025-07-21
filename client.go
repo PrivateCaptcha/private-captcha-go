@@ -17,6 +17,7 @@ import (
 var (
 	headerApiKey     = http.CanonicalHeaderKey("X-Api-Key")
 	headerTraceID    = http.CanonicalHeaderKey("X-Trace-ID")
+	headerUserAgent  = http.CanonicalHeaderKey("User-Agent")
 	retryAfterHeader = http.CanonicalHeaderKey("Retry-After")
 	rateLimitHeader  = http.CanonicalHeaderKey("X-RateLimit-Limit")
 	errEmptyAPIKey   = errors.New("privatecaptcha: API key is empty")
@@ -27,8 +28,9 @@ const (
 	GlobalDomain     = "api.privatecaptcha.com"
 	EUDomain         = "api.eu.privatecaptcha.com"
 	DefaultFormField = "private-captcha-solution"
-	maxErrLength     = 140
+	Version          = "0.0.6"
 	minBackoffMillis = 250
+	userAgent        = "private-captcha-go/" + Version
 )
 
 // HTTPError represents an error with an associated HTTP status code
@@ -126,6 +128,7 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 	}
 
 	req.Header.Set(headerApiKey, c.apiKey)
+	req.Header.Set(headerUserAgent, userAgent)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -136,7 +139,8 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 
 	slog.Log(ctx, levelTrace, "HTTP request finished", "path", req.URL.Path, "status", resp.StatusCode)
 
-	if resp.StatusCode == http.StatusTooManyRequests {
+	switch resp.StatusCode {
+	case http.StatusTooManyRequests:
 		httpErr := HTTPError{StatusCode: resp.StatusCode}
 		if retryAfter := resp.Header.Get(retryAfterHeader); len(retryAfter) > 0 {
 			slog.Log(ctx, levelTrace, "Rate limited", "retryAfter", retryAfter, "rateLimit", resp.Header.Get(rateLimitHeader))
@@ -148,11 +152,12 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 		}
 
 		return nil, retriableError{httpErr}
-	}
-
-	if (resp.StatusCode >= 500) ||
-		(resp.StatusCode == http.StatusRequestTimeout) ||
-		(resp.StatusCode == http.StatusTooEarly) {
+	case http.StatusInternalServerError,
+		http.StatusServiceUnavailable,
+		http.StatusBadGateway,
+		http.StatusGatewayTimeout,
+		http.StatusRequestTimeout,
+		http.StatusTooEarly:
 		return nil, retriableError{HTTPError{StatusCode: resp.StatusCode}}
 	}
 
