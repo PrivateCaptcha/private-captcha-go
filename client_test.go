@@ -239,21 +239,19 @@ func TestCustomFormField(t *testing.T) {
 	req.PostForm = formData
 
 	// Verify that VerifyRequest reads from the custom form field
-	err = client.VerifyRequest(ctx, req)
-	if err != nil {
+	if err := client.VerifyRequest(ctx, req); err != nil {
 		t.Fatal(err)
 	}
 
 	// Also test that it doesn't work with the default field name
 	defaultFormData := url.Values{}
 	defaultFormData.Set(DefaultFormField, payload)
-	
+
 	defaultReq := httptest.NewRequest(http.MethodPost, "/test", nil)
 	defaultReq.PostForm = defaultFormData
 
 	// This should fail because the client is configured to use the custom field
-	err = client.VerifyRequest(ctx, defaultReq)
-	if err == nil {
-		t.Fatal("Expected VerifyRequest to fail when using default form field with custom client")
+	if err := client.VerifyRequest(ctx, defaultReq); err != errEmtpySolution {
+		t.Errorf("Unexpected error: %v", err)
 	}
 }
