@@ -194,7 +194,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 		attempts = input.Attempts
 	}
 
-	maxBackoffSeconds := 10
+	maxBackoffSeconds := 20
 	if input.MaxBackoffSeconds > 0 {
 		maxBackoffSeconds = input.MaxBackoffSeconds
 	}
