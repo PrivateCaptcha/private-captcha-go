@@ -30,7 +30,7 @@ const (
 	EUDomain         = "api.eu.privatecaptcha.com"
 	DefaultFormField = "private-captcha-solution"
 	Version          = "0.0.6"
-	minBackoffMillis = 250
+	minBackoffMillis = 500
 	userAgent        = "private-captcha-go/" + Version
 )
 
