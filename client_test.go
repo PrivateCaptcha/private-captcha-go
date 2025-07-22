@@ -262,3 +262,40 @@ func TestEmptyAPIKey(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }
+
+func TestCustomFailedStatusCode(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.WithValue(context.TODO(), traceIDContextKey, t.Name())
+
+	// Create client with custom failed status code
+	customStatusCode := http.StatusTeapot // 418
+	client, err := NewClient(Configuration{
+		APIKey:           os.Getenv("PC_API_KEY"),
+		FailedStatusCode: customStatusCode,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a simple handler that should be protected by the middleware
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("success"))
+	})
+
+	// Wrap with the captcha middleware
+	protectedHandler := client.VerifyFunc(nextHandler)
+
+	// Create request with empty captcha solution (should fail)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/test", nil)
+	req.PostForm = url.Values{} // Empty form values
+
+	recorder := httptest.NewRecorder()
+
+	protectedHandler.ServeHTTP(recorder, req)
+
+	if recorder.Code != customStatusCode {
+		t.Errorf("Expected status code %d, got %d", customStatusCode, recorder.Code)
+	}
+}
