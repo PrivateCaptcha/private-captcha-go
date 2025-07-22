@@ -216,7 +216,7 @@ func TestCustomFormField(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	customFieldName := "my-custom-captcha-field"
+	const customFieldName = "my-custom-captcha-field"
 	client, err := NewClient(Configuration{
 		APIKey:    os.Getenv("PC_API_KEY"),
 		FormField: customFieldName,
