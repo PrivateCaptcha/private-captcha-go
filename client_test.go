@@ -7,6 +7,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -201,5 +203,57 @@ func TestRetryBackoff(t *testing.T) {
 
 	if response.attempt != input.Attempts {
 		t.Fatal("Didn't go through all attempts")
+	}
+}
+
+func TestCustomFormField(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.WithValue(context.TODO(), traceIDContextKey, t.Name())
+
+	puzzle, err := fetchTestPuzzle(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	customFieldName := "my-custom-captcha-field"
+	client, err := NewClient(Configuration{
+		APIKey:    os.Getenv("PC_API_KEY"),
+		FormField: customFieldName,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a valid test payload (using empty solutions for test property)
+	emptySolutionsBytes := make([]byte, solutionsCount*solutionLength)
+	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
+	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
+
+	// Create form data with our custom field name
+	formData := url.Values{}
+	formData.Set(customFieldName, payload)
+
+	// Create HTTP request with form data
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.PostForm = formData
+
+	// Verify that VerifyRequest reads from the custom form field
+	err = client.VerifyRequest(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Also test that it doesn't work with the default field name
+	defaultFormData := url.Values{}
+	defaultFormData.Set(DefaultFormField, payload)
+	
+	defaultReq := httptest.NewRequest(http.MethodPost, "/test", nil)
+	defaultReq.PostForm = defaultFormData
+
+	// This should fail because the client is configured to use the custom field
+	err = client.VerifyRequest(ctx, defaultReq)
+	if err == nil {
+		t.Fatal("Expected VerifyRequest to fail when using default form field with custom client")
 	}
 }
