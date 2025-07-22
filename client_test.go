@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -18,6 +19,12 @@ const (
 	solutionsCount    = 16
 	solutionLength    = 8
 	traceIDContextKey = "tid"
+)
+
+var (
+	testPuzzleMu     sync.Mutex
+	testPuzzleData   []byte
+	testPuzzleCached bool
 )
 
 type contextHandler struct {
@@ -68,13 +75,21 @@ func init() {
 }
 
 func fetchTestPuzzle(ctx context.Context) ([]byte, error) {
+	testPuzzleMu.Lock()
+	defer testPuzzleMu.Unlock()
+
+	// If we already have cached data, return it immediately
+	if testPuzzleCached {
+		return testPuzzleData, nil
+	}
+
+	// Do the actual API request
 	req, err := http.NewRequest(http.MethodGet, "https://api.privatecaptcha.com/puzzle?sitekey=aaaaaaaabbbbccccddddeeeeeeeeeeee", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Origin", "not.empty")
-
 	slog.Log(ctx, levelTrace, "About to send puzzle request")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -92,6 +107,10 @@ func fetchTestPuzzle(ctx context.Context) ([]byte, error) {
 	}
 
 	slog.Log(ctx, levelTrace, "Received puzzle", "puzzle", len(data))
+
+	// Only cache on success
+	testPuzzleData = data
+	testPuzzleCached = true
 
 	return data, nil
 }
