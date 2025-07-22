@@ -68,7 +68,7 @@ mux.Handle("POST /my/form", client.VerifyFunc(actualHandler))
 input := pc.Configuration{
 	Solution: "solution",
 	MaxBackoffSeconds: 10,
-	Attempts: 10,	
+	Attempts: 10,
 }
 output, err := client.Verify(ctx, input)
 // ... handle err
