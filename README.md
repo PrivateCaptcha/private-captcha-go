@@ -61,3 +61,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 ```go
 mux.Handle("POST /my/form", client.VerifyFunc(actualHandler))
 ```
+
+#### Retry configuration
+
+```go
+input := pc.Configuration{
+	Solution: "solution",
+	MaxBackoffSeconds: 10,
+	Attempts: 10,	
+}
+output, err := client.Verify(ctx, input)
+// ... handle err
+```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For issues with this Go client, please open an issue on GitHub.
+
+For Private Captcha service questions, visit [privatecaptcha.com](https://privatecaptcha.com).
