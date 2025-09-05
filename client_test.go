@@ -3,6 +3,7 @@ package privatecaptcha
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -167,13 +168,14 @@ func TestVerifyError(t *testing.T) {
 	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
 	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
 
-	output, err := client.Verify(ctx, VerifyInput{Solution: payload})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if output.Success || (output.Code != ParseResponseError) {
-		t.Errorf("Unexpected result (%v) or error (%v)", output.Success, output.Code)
+	_, err = client.Verify(ctx, VerifyInput{Solution: payload})
+	var httpErr HTTPError
+	if (err != nil) && errors.As(err, &httpErr) {
+		if httpErr.StatusCode != http.StatusBadRequest {
+			t.Errorf("Unexpected http error code: %v", httpErr.StatusCode)
+		}
+	} else {
+		t.Fatal("Was supposed to be HttpError")
 	}
 }
 
