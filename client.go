@@ -36,6 +36,7 @@ const (
 
 // HTTPError represents an error with an associated HTTP status code
 type HTTPError struct {
+	TraceID    string
 	StatusCode int
 	Seconds    int
 }
@@ -139,11 +140,13 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 	}
 	defer resp.Body.Close()
 
-	slog.Log(ctx, levelTrace, "HTTP request finished", "path", req.URL.Path, "status", resp.StatusCode)
+	traceID := resp.Header.Get(headerTraceID)
+
+	slog.Log(ctx, levelTrace, "HTTP request finished", "path", req.URL.Path, "status", resp.StatusCode, "traceID", traceID)
 
 	switch resp.StatusCode {
 	case http.StatusTooManyRequests:
-		httpErr := HTTPError{StatusCode: resp.StatusCode}
+		httpErr := HTTPError{StatusCode: resp.StatusCode, TraceID: traceID}
 		if retryAfter := resp.Header.Get(headerRetryAfter); len(retryAfter) > 0 {
 			slog.Log(ctx, levelTrace, "Rate limited", "retryAfter", retryAfter, "rateLimit", resp.Header.Get(headerRateLimit))
 			if value, aerr := strconv.Atoi(retryAfter); aerr == nil {
@@ -160,14 +163,14 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 		http.StatusGatewayTimeout,
 		http.StatusRequestTimeout,
 		http.StatusTooEarly:
-		return nil, retriableError{HTTPError{StatusCode: resp.StatusCode}}
+		return nil, retriableError{HTTPError{StatusCode: resp.StatusCode, TraceID: traceID}}
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, HTTPError{StatusCode: resp.StatusCode}
+		return nil, HTTPError{StatusCode: resp.StatusCode, TraceID: traceID}
 	}
 
-	response := &VerifyOutput{requestID: resp.Header.Get(headerTraceID)}
+	response := &VerifyOutput{requestID: traceID}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return response, retriableError{err}
