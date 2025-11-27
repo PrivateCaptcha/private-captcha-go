@@ -51,12 +51,13 @@ func (verr VerifyCode) String() string {
 }
 
 type VerifyOutput struct {
-	Success   bool       `json:"success"`
-	Code      VerifyCode `json:"code"`
-	Origin    string     `json:"origin,omitempty"`
-	Timestamp string     `json:"timestamp,omitempty"`
-	requestID string     `json:"-"`
-	attempt   int        `json:"-"`
+	Success   bool              `json:"success"`
+	Code      VerifyCode        `json:"code"`
+	Origin    string            `json:"origin,omitempty"`
+	Timestamp string            `json:"timestamp,omitempty"`
+	requestID string            `json:"-"`
+	attempt   int               `json:"-"`
+	metadata  map[string]string `json:"-"`
 }
 
 func (vr *VerifyOutput) RequestID() string {
@@ -73,4 +74,16 @@ func (vr *VerifyOutput) Error() string {
 	}
 
 	return vr.Code.String()
+}
+
+func (vr *VerifyOutput) Metadata(key string) string {
+	if (vr == nil) || (vr.metadata == nil) {
+		return ""
+	}
+
+	if v, ok := vr.metadata[key]; ok {
+		return v
+	}
+
+	return ""
 }

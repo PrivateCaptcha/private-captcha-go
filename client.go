@@ -122,7 +122,7 @@ func (e retriableError) Unwrap() error {
 	return e.err
 }
 
-func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, error) {
+func (c *Client) doVerify(ctx context.Context, solution string, headers []string) (*VerifyOutput, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, strings.NewReader(solution))
 	if err != nil {
 		slog.Log(ctx, levelTrace, "Failed to create HTTP request", errAttr(err))
@@ -170,7 +170,12 @@ func (c *Client) doVerify(ctx context.Context, solution string) (*VerifyOutput, 
 		return nil, HTTPError{StatusCode: resp.StatusCode, TraceID: traceID}
 	}
 
-	response := &VerifyOutput{requestID: traceID}
+	metadata := make(map[string]string)
+	for _, header := range headers {
+		metadata[header] = resp.Header.Get(header)
+	}
+
+	response := &VerifyOutput{requestID: traceID, metadata: metadata}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return response, retriableError{err}
@@ -183,6 +188,7 @@ type VerifyInput struct {
 	Solution          string
 	MaxBackoffSeconds int
 	Attempts          int
+	Headers           []string
 }
 
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
@@ -228,7 +234,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 			time.Sleep(backoffDuration)
 		}
 
-		response, err = c.doVerify(ctx, input.Solution)
+		response, err = c.doVerify(ctx, input.Solution, input.Headers)
 		var rerr retriableError
 		if (err != nil) && errors.As(err, &rerr) {
 			err = rerr.Unwrap()
