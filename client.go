@@ -21,6 +21,7 @@ var (
 	headerRetryAfter  = http.CanonicalHeaderKey("Retry-After")
 	headerRateLimit   = http.CanonicalHeaderKey("X-RateLimit-Limit")
 	headerContentType = http.CanonicalHeaderKey("Content-Type")
+	headerSitekey     = http.CanonicalHeaderKey("X-PC-Sitekey")
 	errEmptyAPIKey    = errors.New("privatecaptcha: API key is empty")
 	errEmtpySolution  = errors.New("privatecaptcha: solution is empty")
 )
@@ -122,7 +123,7 @@ func (e retriableError) Unwrap() error {
 	return e.err
 }
 
-func (c *Client) doVerify(ctx context.Context, solution string, headers []string) (*VerifyOutput, error) {
+func (c *Client) doVerify(ctx context.Context, solution, sitekey string, headers []string) (*VerifyOutput, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, strings.NewReader(solution))
 	if err != nil {
 		slog.Log(ctx, levelTrace, "Failed to create HTTP request", errAttr(err))
@@ -132,6 +133,9 @@ func (c *Client) doVerify(ctx context.Context, solution string, headers []string
 	req.Header.Set(headerApiKey, c.apiKey)
 	req.Header.Set(headerUserAgent, userAgent)
 	req.Header.Set(headerContentType, "text/plain")
+	if len(sitekey) > 0 {
+		req.Header.Set(headerSitekey, sitekey)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -189,6 +193,7 @@ type VerifyInput struct {
 	MaxBackoffSeconds int
 	Attempts          int
 	Headers           []string
+	Sitekey           string
 }
 
 // Verify will verify CAPTCHA solution obtained from the client-side. Solution usually comes as part of the form.
@@ -234,7 +239,7 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 			time.Sleep(backoffDuration)
 		}
 
-		response, err = c.doVerify(ctx, input.Solution, input.Headers)
+		response, err = c.doVerify(ctx, input.Solution, input.Sitekey, input.Headers)
 		var rerr retriableError
 		if (err != nil) && errors.As(err, &rerr) {
 			err = rerr.Unwrap()
