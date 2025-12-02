@@ -60,6 +60,14 @@ type VerifyOutput struct {
 	metadata  map[string]string `json:"-"`
 }
 
+func (vr *VerifyOutput) OK() bool {
+	if vr == nil {
+		return false
+	}
+
+	return vr.Success && (vr.Code == VerifyNoError)
+}
+
 func (vr *VerifyOutput) RequestID() string {
 	if vr == nil {
 		return ""
