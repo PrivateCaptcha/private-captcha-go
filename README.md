@@ -37,7 +37,7 @@ client, err := pc.NewClient(pc.Configuration{APIKey: "pc_abcdef"})
 output, err := client.Verify(ctx, pc.VerifyInput{Solution: solution})
 // ... handle err
 
-if !output.Success {
+if !output.OK() {
 	fmt.Printf("Captcha verification failed. Error: %s", result.Error())
 }
 ```

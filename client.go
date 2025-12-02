@@ -262,7 +262,7 @@ func (c *Client) VerifyRequest(ctx context.Context, r *http.Request) error {
 		return err
 	}
 
-	if output.OK() {
+	if !output.OK() {
 		return fmt.Errorf("captcha verification failed: %v", output.Error())
 	}
 
