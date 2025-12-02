@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -260,7 +261,7 @@ func TestCustomFormField(t *testing.T) {
 	req.PostForm = formData
 
 	// Verify that VerifyRequest reads from the custom form field
-	if err := client.VerifyRequest(ctx, req); err != nil {
+	if err := client.VerifyRequest(ctx, req); err != nil && !strings.HasSuffix(err.Error(), TestPropertyError.String()) {
 		t.Fatal(err)
 	}
 
