@@ -15,6 +15,7 @@ const (
 	MaintenanceModeError    VerifyCode = 9
 	TestPropertyError       VerifyCode = 10
 	IntegrityError          VerifyCode = 11
+	OrgScopeError           VerifyCode = 12
 	// Add new fields _above_
 	VERIFY_CODES_COUNT
 )
@@ -45,6 +46,8 @@ func (verr VerifyCode) String() string {
 		return "property-test"
 	case IntegrityError:
 		return "integrity-error"
+	case OrgScopeError:
+		return "property-org-scope"
 	default:
 		return "error"
 	}
