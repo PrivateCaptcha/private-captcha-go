@@ -236,7 +236,14 @@ func (c *Client) Verify(ctx context.Context, input VerifyInput) (*VerifyOutput, 
 				}
 			}
 			slog.Log(ctx, levelTrace, "Failed to send verify request", "attempt", i, "backoff", backoffDuration.String(), errAttr(err))
-			time.Sleep(backoffDuration)
+			select {
+			case <-ctx.Done():
+				if response == nil {
+					response = &VerifyOutput{Success: false, Code: VERIFY_CODES_COUNT}
+				}
+				return response, ctx.Err()
+			case <-time.After(backoffDuration):
+			}
 		}
 
 		response, err = c.doVerify(ctx, input.Solution, input.Sitekey, input.Headers)
