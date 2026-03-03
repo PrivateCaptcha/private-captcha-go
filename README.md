@@ -1,6 +1,6 @@
 # Private Captcha for Go
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/PrivateCaptcha/private-captcha-go) ![CI](https://github.com/PrivateCaptcha/private-captcha-go/actions/workflows/ci.yaml/badge.svg)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/PrivateCaptcha/private-captcha-go) [![CI](https://github.com/PrivateCaptcha/private-captcha-go/actions/workflows/ci.yaml/badge.svg)](https://github.com/PrivateCaptcha/private-captcha-go/actions/workflows/ci.yaml)
 
 Official Go client for Private Captcha API
 

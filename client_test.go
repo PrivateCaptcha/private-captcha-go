@@ -169,14 +169,14 @@ func TestVerifyError(t *testing.T) {
 	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
 	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
 
-	_, err = client.Verify(ctx, VerifyInput{Solution: payload})
+	output, err := client.Verify(ctx, VerifyInput{Solution: payload})
 	var httpErr HTTPError
 	if (err != nil) && errors.As(err, &httpErr) {
 		if httpErr.StatusCode != http.StatusBadRequest {
 			t.Errorf("Unexpected http error code: %v", httpErr.StatusCode)
 		}
 	} else {
-		t.Fatal("Was supposed to be HttpError")
+		t.Fatalf("Was supposed to be HttpError, but got %T (request ID: %v)", err, output.RequestID())
 	}
 }
 
