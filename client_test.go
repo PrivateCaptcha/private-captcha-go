@@ -21,6 +21,7 @@ const (
 	solutionsCount    = 16
 	solutionLength    = 8
 	traceIDContextKey = "tid"
+	testSitekey       = "aaaaaaaabbbbccccddddeeeeeeeeeeee"
 )
 
 var (
@@ -86,7 +87,7 @@ func fetchTestPuzzle(ctx context.Context) ([]byte, error) {
 	}
 
 	// Do the actual API request
-	req, err := http.NewRequest(http.MethodGet, "https://api.privatecaptcha.com/puzzle?sitekey=aaaaaaaabbbbccccddddeeeeeeeeeeee", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://api.privatecaptcha.com/puzzle?sitekey="+testSitekey, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func TestStubPuzzle(t *testing.T) {
 	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
 	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
 
-	output, err := client.Verify(ctx, VerifyInput{Solution: payload})
+	output, err := client.Verify(ctx, VerifyInput{Solution: payload, Sitekey: testSitekey})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +170,7 @@ func TestVerifyError(t *testing.T) {
 	solutionsStr := base64.StdEncoding.EncodeToString(emptySolutionsBytes)
 	payload := fmt.Sprintf("%s.%s", solutionsStr, string(puzzle))
 
-	output, err := client.Verify(ctx, VerifyInput{Solution: payload})
+	output, err := client.Verify(ctx, VerifyInput{Solution: payload, Sitekey: testSitekey})
 	var httpErr HTTPError
 	if (err != nil) && errors.As(err, &httpErr) {
 		if httpErr.StatusCode != http.StatusBadRequest {
@@ -192,7 +193,7 @@ func TestVerifyEmptySolution(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := client.Verify(ctx, VerifyInput{}); err != errEmtpySolution {
+	if _, err := client.Verify(ctx, VerifyInput{Sitekey: testSitekey}); err != errEmtpySolution {
 		t.Fatal("Should not proceed on empty solution")
 	}
 }
@@ -213,6 +214,7 @@ func TestRetryBackoff(t *testing.T) {
 
 	input := VerifyInput{
 		Solution:          "asdf",
+		Sitekey:           testSitekey,
 		MaxBackoffSeconds: 1,
 		Attempts:          4,
 	}
