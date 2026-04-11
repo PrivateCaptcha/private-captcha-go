@@ -44,4 +44,4 @@ jobs:
     - name: Run unit tests
       run: make test
       env:
-        PC_API_KEY: ${{ secrets.PC_API_KEY }}
+        PC_API_KEY: ${{ secrets.PC_API_KEY }} # zizmor: ignore[secrets-outside-env]
