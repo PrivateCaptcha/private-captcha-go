@@ -58,6 +58,7 @@ type VerifyOutput struct {
 	Code      VerifyCode        `json:"code"`
 	Origin    string            `json:"origin,omitempty"`
 	Timestamp string            `json:"timestamp,omitempty"`
+	EdgeToken string            `json:"edge_token,omitempty"`
 	requestID string            `json:"-"`
 	attempt   int               `json:"-"`
 	metadata  map[string]string `json:"-"`
